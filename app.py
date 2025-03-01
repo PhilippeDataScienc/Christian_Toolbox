@@ -78,8 +78,7 @@ with col1:
     birth_date = st.date_input("Date de naissance", 
                              value=datetime.now() - timedelta(days=365*30),  # ~30 ans par défaut
                              max_value=datetime.now(),
-                             format="DD/MM/YYYY",
-                             key="birth_date_input")  # Clé unique pour détecter les changements
+                             format="DD/MM/YYYY")  # Format français
     
     # Date actuelle
     today = datetime.now().date()
@@ -272,31 +271,14 @@ st.markdown("---")
 st.subheader("📋 Planificateur d'activités")
 st.markdown("Planifiez vos activités en fonction de vos biorythmes pour optimiser votre performance")
 
-# Fonction pour identifier les jours critiques (où le biorythme passe de positif à négatif ou inversement)
-def identify_critical_days(cycle_values):
-    critical_days = []
-    for i in range(1, len(cycle_values)):
-        # Si le signe change (produit négatif) ou si la valeur est très proche de zéro
-        if cycle_values[i-1] * cycle_values[i] <= 0 or abs(cycle_values[i]) < 0.05:
-            critical_days.append(i+1)  # +1 car les jours sont indexés à partir de 1
-    return critical_days
-
-# Détection des changements de date de naissance
-if 'previous_birth_date' not in st.session_state:
-    st.session_state.previous_birth_date = birth_date
-elif st.session_state.previous_birth_date != birth_date:
-    st.session_state.previous_birth_date = birth_date
-    if 'activities' in st.session_state:
-        st.rerun()  # Rafraîchir quand la date de naissance change
-
 # Gestion des activités existantes
 if 'activities' not in st.session_state:
     st.session_state.activities = []
 
-# Interface d'ajout d'activité plus propre
-col1, col2, col3 = st.columns([3, 2, 1])
+# Formulaire pour ajouter une nouvelle activité
+col1, col2, col3 = st.columns([2, 1, 1])
 with col1:
-    activity_name = st.text_input("Nom de l'activité", key="new_activity_name", placeholder="Entrez le nom de l'activité")
+    activity_name = st.text_input("Nom de l'activité", key="new_activity_name")
 with col2:
     activity_category = st.selectbox(
         "Catégorie",
@@ -304,9 +286,7 @@ with col2:
         key="new_activity_category"
     )
 with col3:
-    st.write("")
-    st.write("")
-    add_button = st.button("Ajouter une activité", type="primary")
+    add_button = st.button("+ Ajouter une activité")
     
 if add_button and activity_name:
     new_activity = {
@@ -318,117 +298,92 @@ if add_button and activity_name:
     st.success(f"Activité '{activity_name}' ajoutée avec succès!")
     st.rerun()
 
-# Légende des couleurs
-col1, col2, col3 = st.columns(3)
-with col1:
-    st.markdown('<div style="display: flex; align-items: center;"><div style="width: 20px; height: 20px; background-color: #4CAF50; margin-right: 8px;"></div><span>Période favorable (biorythme > 0)</span></div>', unsafe_allow_html=True)
-with col2:
-    st.markdown('<div style="display: flex; align-items: center;"><div style="width: 20px; height: 20px; background-color: #f8f9fa; border: 1px solid #ddd; margin-right: 8px;"></div><span>Période défavorable (biorythme < 0)</span></div>', unsafe_allow_html=True)
-with col3:
-    st.markdown('<div style="display: flex; align-items: center;"><div style="width: 20px; height: 20px; background-image: repeating-linear-gradient(45deg, #aaa, #aaa 5px, #f8f9fa 5px, #f8f9fa 10px); margin-right: 8px;"></div><span>Jour critique (biorythme ≈ 0)</span></div>', unsafe_allow_html=True)
-
-st.markdown("---")
-
-# Afficher les activités
+# Afficher les activités et leurs périodes recommandées
 if st.session_state.activities:
-    for activity in st.session_state.activities:
-        # Titre de l'activité
-        st.markdown(f"### {activity['name']} ({activity['category']})")
-        
-        # Obtenir les données de biorythme pour cette catégorie
-        cycle_data = df[activity['category']].values
-        days = df['Jour'].values
-        
-        # Identifier les jours critiques
-        critical_days = identify_critical_days(cycle_data)
-        
-        # Obtenir les couleurs en fonction de la catégorie
-        if activity['category'] == "Physique":
-            base_color = "rgb(255, 90, 90)"  # Rouge 
-        elif activity['category'] == "Émotionnel":
-            base_color = "rgb(255, 207, 86)"  # Jaune
-        else:  # Intellectuel
-            base_color = "rgb(82, 113, 255)"  # Bleu
-        
-        # Créer une visualisation améliorée
-        calendar_html = f"""
-        <div style="margin: 20px 0;">
-            <!-- Barre des jours -->
-            <div style="display: flex; height: 40px; width: 100%; position: relative; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px; overflow: hidden;">
-        """
-        
-        # Ligne verticale pour le jour actuel
-        calendar_html += f"""
-            <div style="position: absolute; left: calc({(today.day-1)/31*100}%); height: 100%; width: 2px; background-color: red; z-index: 10;"></div>
-        """
-        
-        # Ajouter une barre pour chaque jour
-        for i, (day, value) in enumerate(zip(days, cycle_data)):
-            # Déterminer le style en fonction de la valeur
-            if day in critical_days:
-                # Jour critique - hachuré
-                style = "background-image: repeating-linear-gradient(45deg, #aaa, #aaa 5px, #f8f9fa 5px, #f8f9fa 10px);"
-            elif value < 0.25:
-                # Valeur négative - blanc/gris clair
-                style = "background-color: #f8f9fa; border-right: 1px solid #ddd;"
-            else:
-                # Valeur positive - dégradé de la couleur de la catégorie
-                # L'opacité varie de 0.3 à 1.0 en fonction de la valeur
-                intensity = 0.3 + (0.7 * min(1, value))
-                if activity['category'] == "Physique":
-                    color_style = f"background-color: rgba(255, 90, 90, {intensity});"
-                elif activity['category'] == "Émotionnel":
-                    color_style = f"background-color: rgba(255, 207, 86, {intensity});"
-                else:  # Intellectuel
-                    color_style = f"background-color: rgba(82, 113, 255, {intensity});"
-                style = color_style + " border-right: 1px solid rgba(0,0,0,0.05);"
+    # Créer un conteneur pour le graphique de recommandation
+    recommendation_container = st.container()
+    
+    with recommendation_container:
+        # Pour chaque activité, créer un graphique de périodes recommandées
+        for activity in st.session_state.activities:
+            # Créer une figure pour cette activité
+            fig_activity = go.Figure()
             
-            # Ajouter la barre du jour
-            calendar_html += f"""
-            <div style="flex: 1; {style}"></div>
-            """
-        
-        calendar_html += """
-            </div>
+            # Obtenir les données de biorythme pour cette catégorie
+            cycle_data = df[activity['category']].values
             
-            <!-- Numéros des jours -->
-            <div style="display: flex; width: 100%; margin-top: 5px;">
-        """
-        
-        # Ajouter les numéros des jours
-        for i in range(1, 32):
-            # Ajouter un style spécial au jour actuel
-            day_style = "font-weight: bold; color: red;" if i == today.day else ""
+            # Modifier les données pour afficher un dégradé uniquement pour les valeurs > 0.25
+            display_data = [val if val > 0.25 else None for val in cycle_data]
             
-            # Afficher les jours 1, 5, 10, 15, 20, 25, 30 pour éviter l'encombrement
-            if i == 1 or i % 5 == 0 or i == 31:
-                calendar_html += f"""
-                <div style="flex: 1; text-align: center; font-size: 12px; {day_style}">{i}</div>
-                """
-            else:
-                calendar_html += f"""
-                <div style="flex: 1;"></div>
-                """
-        
-        calendar_html += """
-            </div>
-        </div>
-        """
-        
-        # Afficher la visualisation HTML
-        st.markdown(calendar_html, unsafe_allow_html=True)
-        
-        # Bouton de suppression
-        col1, col2 = st.columns([5, 1])
-        with col2:
-            if st.button("Supprimer", key=f"delete_{activity['id']}"):
-                st.session_state.activities.remove(activity)
-                st.rerun()
-        
-        st.markdown("---")
+            # Créer une visualisation de type heatmap horizontale
+            # Utiliser une seule ligne de couleur qui varie selon la valeur du biorythme
+            fig_activity.add_trace(go.Heatmap(
+                z=[display_data],
+                x=df['Jour'],
+                colorscale=[
+                    [0, 'rgba(255,255,255,0)'],  # Transparent pour les valeurs <= 0.25
+                    [0.001, f'rgba{tuple(int(c) for c in bytes.fromhex(colors[activity["category"]][1:] + "80"))}'],  # Commencer le dégradé à 50% d'opacité
+                    [1, colors[activity['category']]]  # Couleur complète pour les valeurs maximales
+                ],
+                showscale=False,
+                zmin=0.25,  # Commencer à partir de 0.25
+                zmax=1
+            ))
+            
+            # Ajouter une ligne verticale pour le jour actuel
+            fig_activity.add_shape(
+                type="line",
+                x0=today.day,
+                y0=-0.5,
+                x1=today.day,
+                y1=0.5,
+                line=dict(
+                    color="red",
+                    width=2,
+                )
+            )
+            
+            # Configuration du graphique
+            fig_activity.update_layout(
+                height=100,
+                margin=dict(l=50, r=20, t=30, b=20),
+                xaxis=dict(
+                    title=None,
+                    tickmode='linear',
+                    tick0=1,
+                    dtick=1,
+                    showgrid=False
+                ),
+                yaxis=dict(
+                    showticklabels=False,
+                    showgrid=False,
+                    zeroline=False
+                ),
+                plot_bgcolor='rgba(255, 255, 255, 1)',
+                title=dict(
+                    text=f"{activity['name']} ({activity['category']})",
+                    x=0,
+                    font=dict(
+                        size=14
+                    )
+                )
+            )
+            
+            # Afficher le bouton de suppression à droite du titre
+            col_graph, col_btn = st.columns([6, 1])
+            
+            with col_graph:
+                # Afficher le graphique
+                st.plotly_chart(fig_activity, use_container_width=True)
+            
+            with col_btn:
+                st.write("")  # Espace pour aligner avec le titre
+                st.write("")  # Espace pour aligner avec le titre
+                if st.button("Supprimer", key=f"delete_{activity['id']}"):
+                    st.session_state.activities.remove(activity)
+                    st.rerun()
 else:
     st.info("Ajoutez votre première activité en utilisant le formulaire ci-dessus.")
-
 
 # Pied de page
 st.markdown("---")
