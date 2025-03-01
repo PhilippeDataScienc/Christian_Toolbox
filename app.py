@@ -368,7 +368,7 @@ if st.session_state.activities:
             if day in critical_days:
                 # Jour critique - hachuré
                 style = "background-image: repeating-linear-gradient(45deg, #aaa, #aaa 5px, #f8f9fa 5px, #f8f9fa 10px);"
-            elif value <= 0:
+            elif value < 0.25:
                 # Valeur négative - blanc/gris clair
                 style = "background-color: #f8f9fa; border-right: 1px solid #ddd;"
             else:
