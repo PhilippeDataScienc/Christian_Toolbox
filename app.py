@@ -322,7 +322,7 @@ with st.expander("➕ Ajouter une nouvelle activité", expanded=False):
             }
             st.session_state.activities.append(new_activity)
             st.success(f"Activité '{activity_name}' ajoutée avec succès!")
-            st.experimental_rerun()
+            st.rerun()
 
 # Affichage des activités et du diagramme de Gantt
 if st.session_state.activities:
@@ -412,7 +412,7 @@ if st.session_state.activities:
             with col_c:
                 if st.button("Supprimer", key=f"delete_{activity['id']}"):
                     st.session_state.activities.pop(i)
-                    st.experimental_rerun()
+                    st.rerun()
 else:
     st.info("Ajoutez votre première activité en cliquant sur le bouton '+' ci-dessus.")
 
