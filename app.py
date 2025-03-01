@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import math
 import locale
@@ -142,40 +142,105 @@ with col2:
     # Création du DataFrame
     df = pd.DataFrame(biorhythm_data)
     
-    # Création du graphique avec Matplotlib
-    fig, ax = plt.subplots(figsize=(12, 6))
+    # Création du graphique avec Plotly
+    fig = go.Figure()
     
-    # Tracé des courbes
-    ax.plot(df['Jour'], df['Physique'], 'o-', color='#FF5A5A', label='Physique', linewidth=2)
-    ax.plot(df['Jour'], df['Émotionnel'], 'o-', color='#FFCF56', label='Émotionnel', linewidth=2)
-    ax.plot(df['Jour'], df['Intellectuel'], 'o-', color='#5271FF', label='Intellectuel', linewidth=2)
+    # Ajouter les courbes
+    fig.add_trace(go.Scatter(
+        x=df['Jour'], 
+        y=df['Physique'], 
+        mode='lines+markers',
+        name='Physique',
+        line=dict(color='#FF5A5A', width=3),
+        marker=dict(size=8)
+    ))
+    
+    fig.add_trace(go.Scatter(
+        x=df['Jour'], 
+        y=df['Émotionnel'], 
+        mode='lines+markers',
+        name='Émotionnel',
+        line=dict(color='#FFCF56', width=3),
+        marker=dict(size=8)
+    ))
+    
+    fig.add_trace(go.Scatter(
+        x=df['Jour'], 
+        y=df['Intellectuel'], 
+        mode='lines+markers',
+        name='Intellectuel',
+        line=dict(color='#5271FF', width=3),
+        marker=dict(size=8)
+    ))
     
     # Ligne horizontale pour la valeur zéro
-    ax.axhline(y=0, color='gray', linestyle='--', alpha=0.5)
+    fig.add_shape(
+        type="line",
+        x0=1,
+        y0=0,
+        x1=len(df['Jour']),
+        y1=0,
+        line=dict(
+            color="gray",
+            width=1,
+            dash="dash",
+        )
+    )
     
     # Ligne verticale pour aujourd'hui
-    ax.axvline(x=today.day, color='gray', linestyle='-', alpha=0.5)
+    fig.add_shape(
+        type="line",
+        x0=today.day,
+        y0=-1,
+        x1=today.day,
+        y1=1,
+        line=dict(
+            color="gray",
+            width=1,
+        )
+    )
     
-    # Configuration des axes
-    ax.set_xlim(1, len(df['Jour']))
-    ax.set_ylim(-1.1, 1.1)
-    ax.set_xlabel('Jour du mois')
-    ax.set_ylabel('Niveau du biorythme')
+    # Mise en page du graphique
+    fig.update_layout(
+        title='Biorythmes',
+        xaxis_title='Jour du mois',
+        yaxis_title='Niveau du biorythme',
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="center",
+            x=0.5
+        ),
+        yaxis=dict(
+            range=[-1.1, 1.1],
+            zeroline=False,
+            gridwidth=1,
+            gridcolor='rgba(233, 233, 233, 0.6)',
+        ),
+        xaxis=dict(
+            tickmode='linear',
+            gridwidth=1,
+            gridcolor='rgba(233, 233, 233, 0.6)',
+        ),
+        plot_bgcolor='rgba(255, 255, 255, 1)',
+        margin=dict(t=50, l=50, r=50, b=50),
+        height=500,
+    )
     
-    # Ajout d'une légende
-    ax.legend(loc='upper right')
+    # Supprimer l'axe x supérieur
+    fig.update_layout(
+        xaxis=dict(
+            mirror=False,
+            showline=True,
+            linewidth=1,
+            linecolor='black',
+            showgrid=True,
+        )
+    )
     
-    # Grille
-    ax.grid(True, alpha=0.3)
-    
-    # Titre du graphique
-    plt.title('Biorythmes')
-    
-    # Ajustement de la mise en page
-    plt.tight_layout()
-    
-    # Affichage du graphique dans Streamlit
-    st.pyplot(fig)
+    # Afficher le graphique dans Streamlit
+    st.plotly_chart(fig, use_container_width=True)
     
     # Légende des jours critiques
     st.markdown("""
