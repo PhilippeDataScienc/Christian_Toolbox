@@ -1,5 +1,7 @@
 # Christian_Toolbox
 
+Développement d'outils d'aide à la décision pour des application en psychologie
+
 # 🔄 Calculateur de Biorythmes
 
 Une application web interactive permettant de visualiser et d'analyser vos cycles biologiques naturels en fonction de votre date de naissance, développée avec Streamlit et Plotly.
