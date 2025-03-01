@@ -5,6 +5,7 @@ import altair as alt
 from datetime import datetime, timedelta
 import math
 import locale
+from streamlit.components.v1 import html
 
 # Tentative de configuration de la locale française
 try:
@@ -27,6 +28,72 @@ st.set_page_config(
     page_icon="🔄",
     layout="wide"
 )
+
+# Script JavaScript pour traduire le calendrier en français
+# Injection de code JavaScript pour traduire le widget de calendrier en français
+calendar_translation_js = """
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Fonction qui s'exécute périodiquement pour vérifier si le calendrier est chargé
+    const checkAndTranslate = setInterval(function() {
+        // Recherche les éléments du calendrier
+        const calendarButtons = document.querySelectorAll('.react-datepicker__navigation, .react-datepicker__current-month');
+        const dayNames = document.querySelectorAll('.react-datepicker__day-name');
+        const monthDropdown = document.querySelector('.react-datepicker__month-select');
+        
+        if (dayNames.length > 0 || calendarButtons.length > 0 || monthDropdown) {
+            // Traduction des noms des jours
+            const frenchDayNames = ['Di', 'Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa'];
+            dayNames.forEach((dayElem, index) => {
+                dayElem.textContent = frenchDayNames[index % 7];
+            });
+            
+            // Traduction des noms des mois dans l'en-tête
+            const monthNames = document.querySelectorAll('.react-datepicker__current-month');
+            const frenchMonthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+            
+            monthNames.forEach(monthElem => {
+                const currentText = monthElem.textContent;
+                // Regex pour extraire le mois et l'année
+                const match = currentText.match(/(\\w+)\\s+(\\d{4})/);
+                if (match) {
+                    const monthIndex = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].indexOf(match[1]);
+                    if (monthIndex !== -1) {
+                        monthElem.textContent = `${frenchMonthNames[monthIndex]} ${match[2]}`;
+                    }
+                }
+            });
+            
+            // Traduction du dropdown des mois s'il existe
+            if (monthDropdown) {
+                const options = monthDropdown.querySelectorAll('option');
+                options.forEach((option, index) => {
+                    option.textContent = frenchMonthNames[index];
+                });
+            }
+            
+            // Si on a trouvé des éléments à traduire, on arrête le timer
+            if (dayNames.length > 0 || monthNames.length > 0 || (monthDropdown && options.length > 0)) {
+                clearInterval(checkAndTranslate);
+                
+                // On remet le timer pour les futures ouvertures du calendrier
+                setTimeout(() => {
+                    const newCheckInterval = setInterval(checkAndTranslate, 300);
+                    // On arrête ce nouveau timer après 10 secondes
+                    setTimeout(() => clearInterval(newCheckInterval), 10000);
+                }, 1000);
+            }
+        }
+    }, 300);
+    
+    // On arrête le timer après 10 secondes si rien n'est trouvé
+    setTimeout(() => clearInterval(checkAndTranslate), 10000);
+});
+</script>
+"""
+
+# Injection du script JavaScript
+html(calendar_translation_js)
 
 # Titre de l'application
 st.title("🔄 Calculateur de Biorythmes")
