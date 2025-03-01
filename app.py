@@ -78,7 +78,8 @@ with col1:
     birth_date = st.date_input("Date de naissance", 
                              value=datetime.now() - timedelta(days=365*30),  # ~30 ans par défaut
                              max_value=datetime.now(),
-                             format="DD/MM/YYYY")  # Format français
+                             format="DD/MM/YYYY",
+                             key="birth_date_input")  # Clé unique pour détecter les changements
     
     # Date actuelle
     today = datetime.now().date()
@@ -271,9 +272,25 @@ st.markdown("---")
 st.subheader("📋 Planificateur d'activités")
 st.markdown("Planifiez vos activités en fonction de vos biorythmes pour optimiser votre performance")
 
+# Fonction pour identifier les jours critiques (où le biorythme passe de positif à négatif ou inversement)
+def identify_critical_days(cycle_values):
+    critical_days = []
+    for i in range(1, len(cycle_values)):
+        # Si le signe change (produit négatif), c'est un jour critique
+        if cycle_values[i-1] * cycle_values[i] <= 0:
+            critical_days.append(i+1)  # +1 car les jours sont indexés à partir de 1
+    return critical_days
+
 # Gestion des activités existantes
 if 'activities' not in st.session_state:
     st.session_state.activities = []
+
+# Détection des changements de date de naissance
+if 'previous_birth_date' not in st.session_state:
+    st.session_state.previous_birth_date = birth_date
+elif st.session_state.previous_birth_date != birth_date:
+    st.session_state.previous_birth_date = birth_date
+    st.rerun()  # Rafraîchir quand la date de naissance change
 
 # Formulaire pour ajouter une nouvelle activité
 col1, col2, col3 = st.columns([2, 1, 1])
@@ -304,6 +321,17 @@ if st.session_state.activities:
     recommendation_container = st.container()
     
     with recommendation_container:
+        # Légende
+        legend_col1, legend_col2, legend_col3 = st.columns(3)
+        with legend_col1:
+            st.markdown(f'<div style="display:flex;align-items:center;"><div style="width:20px;height:20px;background-color:#4CAF50;margin-right:5px;"></div><span>Période favorable (biorythme > 0)</span></div>', unsafe_allow_html=True)
+        with legend_col2:
+            st.markdown(f'<div style="display:flex;align-items:center;"><div style="width:20px;height:20px;background-color:white;border:1px solid #ccc;margin-right:5px;"></div><span>Période défavorable (biorythme < 0)</span></div>', unsafe_allow_html=True)
+        with legend_col3:
+            st.markdown(f'<div style="display:flex;align-items:center;"><div style="width:20px;height:20px;background-image:repeating-linear-gradient(45deg,#888,#888 5px,#fff 5px,#fff 10px);margin-right:5px;"></div><span>Jour critique (biorythme ≈ 0)</span></div>', unsafe_allow_html=True)
+        
+        st.markdown("---")
+        
         # Pour chaque activité, créer un graphique de périodes recommandées
         for activity in st.session_state.activities:
             # Créer une figure pour cette activité
@@ -312,20 +340,55 @@ if st.session_state.activities:
             # Obtenir les données de biorythme pour cette catégorie
             cycle_data = df[activity['category']].values
             
-            # Créer une visualisation de type heatmap horizontale
-            # Utiliser une seule ligne de couleur qui varie selon la valeur du biorythme
+            # Identifier les jours critiques
+            critical_days = identify_critical_days(cycle_data)
+            
+            # Créer un masque pour les valeurs négatives (pour les afficher en blanc)
+            negative_mask = [1 if val <= 0 else 0 for val in cycle_data]
+            positive_mask = [1 if val > 0 else 0 for val in cycle_data]
+            
+            # Données pour le heatmap
+            z_data = [
+                # Valeurs positives uniquement (valeurs négatives seront blanches)
+                [max(0, val) for val in cycle_data]
+            ]
+            
+            # Créer une visualisation de type heatmap horizontale pour les valeurs positives
             fig_activity.add_trace(go.Heatmap(
-                z=[cycle_data],
+                z=z_data,
                 x=df['Jour'],
                 colorscale=[
-                    [0, f'rgba{tuple(int(c) for c in bytes.fromhex(colors[activity['category']][1:] + "00"))}'],
-                    [0.5, f'rgba{tuple(int(c) for c in bytes.fromhex(colors[activity['category']][1:] + "80"))}'],
+                    [0, f'rgba{tuple(int(c) for c in bytes.fromhex(colors[activity["category"]][1:] + "30"))}'],
                     [1, colors[activity['category']]]
                 ],
                 showscale=False,
-                zmin=-1,
+                zmin=0,
                 zmax=1
             ))
+            
+            # Ajouter des annotations pour les jours critiques (motif hachuré)
+            for day in critical_days:
+                fig_activity.add_shape(
+                    type="rect",
+                    x0=day-0.5,
+                    x1=day+0.5,
+                    y0=-0.5,
+                    y1=0.5,
+                    fillcolor="white",
+                    line=dict(width=0),
+                    layer="below"
+                )
+                # Ajouter des hachures avec plusieurs lignes diagonales
+                for i in range(-5, 6):
+                    fig_activity.add_shape(
+                        type="line",
+                        x0=day-0.5,
+                        y0=-0.5 + (i*0.1),
+                        x1=day+0.5,
+                        y1=0.5 + (i*0.1),
+                        line=dict(color="#888888", width=1),
+                        layer="below"
+                    )
             
             # Ajouter une ligne verticale pour le jour actuel
             fig_activity.add_shape(
