@@ -1,11 +1,10 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import altair as alt
+import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 import math
 import locale
-from streamlit.components.v1 import html
 
 # Tentative de configuration de la locale française
 try:
@@ -28,72 +27,6 @@ st.set_page_config(
     page_icon="🔄",
     layout="wide"
 )
-
-# Script JavaScript pour traduire le calendrier en français
-# Injection de code JavaScript pour traduire le widget de calendrier en français
-calendar_translation_js = """
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Fonction qui s'exécute périodiquement pour vérifier si le calendrier est chargé
-    const checkAndTranslate = setInterval(function() {
-        // Recherche les éléments du calendrier
-        const calendarButtons = document.querySelectorAll('.react-datepicker__navigation, .react-datepicker__current-month');
-        const dayNames = document.querySelectorAll('.react-datepicker__day-name');
-        const monthDropdown = document.querySelector('.react-datepicker__month-select');
-        
-        if (dayNames.length > 0 || calendarButtons.length > 0 || monthDropdown) {
-            // Traduction des noms des jours
-            const frenchDayNames = ['Di', 'Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa'];
-            dayNames.forEach((dayElem, index) => {
-                dayElem.textContent = frenchDayNames[index % 7];
-            });
-            
-            // Traduction des noms des mois dans l'en-tête
-            const monthNames = document.querySelectorAll('.react-datepicker__current-month');
-            const frenchMonthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
-            
-            monthNames.forEach(monthElem => {
-                const currentText = monthElem.textContent;
-                // Regex pour extraire le mois et l'année
-                const match = currentText.match(/(\\w+)\\s+(\\d{4})/);
-                if (match) {
-                    const monthIndex = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].indexOf(match[1]);
-                    if (monthIndex !== -1) {
-                        monthElem.textContent = `${frenchMonthNames[monthIndex]} ${match[2]}`;
-                    }
-                }
-            });
-            
-            // Traduction du dropdown des mois s'il existe
-            if (monthDropdown) {
-                const options = monthDropdown.querySelectorAll('option');
-                options.forEach((option, index) => {
-                    option.textContent = frenchMonthNames[index];
-                });
-            }
-            
-            // Si on a trouvé des éléments à traduire, on arrête le timer
-            if (dayNames.length > 0 || monthNames.length > 0 || (monthDropdown && options.length > 0)) {
-                clearInterval(checkAndTranslate);
-                
-                // On remet le timer pour les futures ouvertures du calendrier
-                setTimeout(() => {
-                    const newCheckInterval = setInterval(checkAndTranslate, 300);
-                    // On arrête ce nouveau timer après 10 secondes
-                    setTimeout(() => clearInterval(newCheckInterval), 10000);
-                }, 1000);
-            }
-        }
-    }, 300);
-    
-    // On arrête le timer après 10 secondes si rien n'est trouvé
-    setTimeout(() => clearInterval(checkAndTranslate), 10000);
-});
-</script>
-"""
-
-# Injection du script JavaScript
-html(calendar_translation_js)
 
 # Titre de l'application
 st.title("🔄 Calculateur de Biorythmes")
@@ -209,76 +142,40 @@ with col2:
     # Création du DataFrame
     df = pd.DataFrame(biorhythm_data)
     
-    # Transformation des données pour Altair
-    df_melted = pd.melt(
-        df, 
-        id_vars=['Date', 'Jour'],
-        value_vars=['Physique', 'Émotionnel', 'Intellectuel'],
-        var_name='Cycle',
-        value_name='Valeur'
-    )
+    # Création du graphique avec Matplotlib
+    fig, ax = plt.subplots(figsize=(12, 6))
     
-    # Déterminer les couleurs pour chaque cycle
-    color_scale = alt.Scale(
-        domain=['Physique', 'Émotionnel', 'Intellectuel'],
-        range=['#FF5A5A', '#FFCF56', '#5271FF']
-    )
+    # Tracé des courbes
+    ax.plot(df['Jour'], df['Physique'], 'o-', color='#FF5A5A', label='Physique', linewidth=2)
+    ax.plot(df['Jour'], df['Émotionnel'], 'o-', color='#FFCF56', label='Émotionnel', linewidth=2)
+    ax.plot(df['Jour'], df['Intellectuel'], 'o-', color='#5271FF', label='Intellectuel', linewidth=2)
     
     # Ligne horizontale pour la valeur zéro
-    zero_line = alt.Chart(pd.DataFrame({'y': [0]})).mark_rule(
-        strokeDash=[3, 3],
-        stroke='gray',
-        opacity=0.5
-    ).encode(y='y')
+    ax.axhline(y=0, color='gray', linestyle='--', alpha=0.5)
     
     # Ligne verticale pour aujourd'hui
-    today_df = pd.DataFrame({'x': [today.day]})
-    today_line = alt.Chart(today_df).mark_rule(
-        stroke='gray',
-        strokeWidth=2
-    ).encode(x='x:Q')
+    ax.axvline(x=today.day, color='gray', linestyle='-', alpha=0.5)
     
-    # Création du graphique avec Altair
-    base = alt.Chart(df_melted)
+    # Configuration des axes
+    ax.set_xlim(1, len(df['Jour']))
+    ax.set_ylim(-1.1, 1.1)
+    ax.set_xlabel('Jour du mois')
+    ax.set_ylabel('Niveau du biorythme')
     
-    # Configuration pour supprimer les axes du haut et de droite
-    config = {
-        'axisX': {'domain': True, 'domainWidth': 1, 'domainColor': 'black', 'grid': True, 'gridWidth': 1, 'gridColor': '#DEDDDD'},
-        'axisY': {'domain': True, 'domainWidth': 1, 'domainColor': 'black', 'grid': True, 'gridWidth': 1, 'gridColor': '#DEDDDD'},
-        'view': {'stroke': None}  # Supprime le cadre autour du graphique
-    }
+    # Ajout d'une légende
+    ax.legend(loc='upper right')
     
-    # Création du graphique avec Altair
-    chart = base.mark_line(
-        point=True,
-        strokeWidth=3
-    ).encode(
-        x=alt.X('Jour:O', axis=alt.Axis(title='Jour du mois')),
-        y=alt.Y('Valeur:Q', 
-               scale=alt.Scale(domain=[-1, 1]),
-               axis=alt.Axis(title='Niveau du biorythme')),
-        color=alt.Color('Cycle:N', 
-                       scale=color_scale,
-                       legend=alt.Legend(
-                           orient='top-right',  # Place la légende en haut à droite
-                           title=None,          # Pas de titre pour la légende
-                           labelFontSize=12
-                       )),
-        tooltip=['Date:T', 'Cycle:N', alt.Tooltip('Valeur:Q', format='.2f')]
-    ).properties(
-        title=f'Biorythmes',
-        width=800,
-        height=400
-    )
+    # Grille
+    ax.grid(True, alpha=0.3)
     
-    # Combiner les charts
-    final_chart = chart + zero_line + today_line
+    # Titre du graphique
+    plt.title('Biorythmes')
     
-    # Appliquer la configuration après la combinaison
-    final_chart = final_chart.configure(**config)
+    # Ajustement de la mise en page
+    plt.tight_layout()
     
-    # Affichage du graphique
-    st.altair_chart(final_chart, use_container_width=True)
+    # Affichage du graphique dans Streamlit
+    st.pyplot(fig)
     
     # Légende des jours critiques
     st.markdown("""
