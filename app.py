@@ -269,10 +269,13 @@ with col2:
         title=f'Biorythmes',
         width=800,
         height=400
-    ).configure(**config)
+    )
     
     # Combiner les charts
     final_chart = chart + zero_line + today_line
+    
+    # Appliquer la configuration après la combinaison
+    final_chart = final_chart.configure(**config)
     
     # Affichage du graphique
     st.altair_chart(final_chart, use_container_width=True)
