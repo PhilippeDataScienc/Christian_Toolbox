@@ -316,88 +316,100 @@ if st.session_state.activities:
             return f'rgba({r}, {g}, {b}, {opacity})'
             
         # Pour chaque activité, créer un graphique de périodes recommandées
-        for activity in st.session_state.activities:
-            # Créer une figure pour cette activité
-            fig_activity = go.Figure()
+        # Pour chaque activité, créer un graphique de périodes recommandées
+for activity in st.session_state.activities:
+    # Créer une figure pour cette activité
+    fig_activity = go.Figure()
+    
+    # Obtenir les données de biorythme pour cette catégorie
+    cycle_data = df[activity['category']].values
+    
+    # Obtenir la couleur de base pour cette catégorie
+    base_color = colors[activity['category']]
+    base_color = base_color.lstrip('#')
+    r = int(base_color[0:2], 16)
+    g = int(base_color[2:4], 16)
+    b = int(base_color[4:6], 16)
+    
+    # Au lieu d'utiliser un heatmap, nous allons créer plusieurs barres côte à côte
+    # avec des opacités différentes basées sur la valeur du biorythme
+    for i, day in enumerate(df['Jour']):
+        value = cycle_data[i]
+        # Afficher seulement les barres pour les valeurs positives > 0.25
+        if value > 0.25:
+            # Calculer l'opacité basée sur la valeur (entre 0.2 et 1.0)
+            opacity = 0.2 + (value - 0.25) * (0.8 / 0.75)  # map 0.25->0.2 and 1.0->1.0
+            opacity = min(1.0, max(0.2, opacity))  # S'assurer que l'opacité est entre 0.2 et 1.0
             
-            # Obtenir les données de biorythme pour cette catégorie
-            cycle_data = df[activity['category']].values
-            
-            # Créer une échelle de couleurs personnalisée qui varie en opacité
-            # Utiliser 5 points pour avoir une transition plus fluide
-            custom_colorscale = [
-                [0.25/1, hex_to_rgba(colors[activity['category']], 0.2)],  # à 0.25, opacité de 20%
-                [0.4/1, hex_to_rgba(colors[activity['category']], 0.4)],   # à 0.4, opacité de 40%
-                [0.6/1, hex_to_rgba(colors[activity['category']], 0.6)],   # à 0.6, opacité de 60%
-                [0.8/1, hex_to_rgba(colors[activity['category']], 0.8)],   # à 0.8, opacité de 80%
-                [1.0/1, hex_to_rgba(colors[activity['category']], 1.0)]    # à 1.0, opacité de 100%
-            ]
-            
-            # Modifier les données pour afficher un dégradé uniquement pour les valeurs > 0.25
-            display_data = [val if val > 0.25 else None for val in cycle_data]
-            
-            # Créer une visualisation de type heatmap horizontale
-            fig_activity.add_trace(go.Heatmap(
-                z=[display_data],
-                x=df['Jour'],
-                colorscale=custom_colorscale,
-                showscale=False,
-                zmin=0.25,
-                zmax=1
+            # Ajouter une barre pour ce jour
+            fig_activity.add_trace(go.Bar(
+                x=[day],
+                y=[1],  # Hauteur fixe
+                width=0.8,  # Largeur fixe pour éviter les espaces
+                marker=dict(
+                    color=f'rgba({r}, {g}, {b}, {opacity})',
+                    line=dict(width=0)
+                ),
+                showlegend=False,
+                hoverinfo='none'
             ))
-            
-            # Ajouter une ligne verticale pour le jour actuel
-            fig_activity.add_shape(
-                type="line",
-                x0=today.day,
-                y0=-0.5,
-                x1=today.day,
-                y1=0.5,
-                line=dict(
-                    color="red",
-                    width=2,
-                )
+    
+    # Ajouter une ligne verticale pour le jour actuel
+    fig_activity.add_shape(
+        type="line",
+        x0=today.day,
+        y0=0,
+        x1=today.day,
+        y1=1,
+        line=dict(
+            color="red",
+            width=2,
+        )
+    )
+    
+    # Configuration du graphique
+    fig_activity.update_layout(
+        height=100,
+        margin=dict(l=50, r=20, t=30, b=20),
+        xaxis=dict(
+            title=None,
+            tickmode='linear',
+            tick0=1,
+            dtick=1,
+            range=[0.5, 31.5],  # Assurer que tous les jours sont visibles
+            showgrid=False
+        ),
+        yaxis=dict(
+            showticklabels=False,
+            showgrid=False,
+            zeroline=False,
+            range=[0, 1]
+        ),
+        plot_bgcolor='rgba(255, 255, 255, 1)',
+        title=dict(
+            text=f"{activity['name']} ({activity['category']})",
+            x=0,
+            font=dict(
+                size=14
             )
-            
-            # Configuration du graphique
-            fig_activity.update_layout(
-                height=100,
-                margin=dict(l=50, r=20, t=30, b=20),
-                xaxis=dict(
-                    title=None,
-                    tickmode='linear',
-                    tick0=1,
-                    dtick=1,
-                    showgrid=False
-                ),
-                yaxis=dict(
-                    showticklabels=False,
-                    showgrid=False,
-                    zeroline=False
-                ),
-                plot_bgcolor='rgba(255, 255, 255, 1)',
-                title=dict(
-                    text=f"{activity['name']} ({activity['category']})",
-                    x=0,
-                    font=dict(
-                        size=14
-                    )
-                )
-            )
-            
-            # Afficher le bouton de suppression à droite du titre
-            col_graph, col_btn = st.columns([6, 1])
-            
-            with col_graph:
-                # Afficher le graphique
-                st.plotly_chart(fig_activity, use_container_width=True)
-            
-            with col_btn:
-                st.write("")  # Espace pour aligner avec le titre
-                st.write("")  # Espace pour aligner avec le titre
-                if st.button("Supprimer", key=f"delete_{activity['id']}"):
-                    st.session_state.activities.remove(activity)
-                    st.rerun()
+        ),
+        barmode='overlay',
+        bargap=0
+    )
+    
+    # Afficher le bouton de suppression à droite du titre
+    col_graph, col_btn = st.columns([6, 1])
+    
+    with col_graph:
+        # Afficher le graphique
+        st.plotly_chart(fig_activity, use_container_width=True)
+    
+    with col_btn:
+        st.write("")  # Espace pour aligner avec le titre
+        st.write("")  # Espace pour aligner avec le titre
+        if st.button("Supprimer", key=f"delete_{activity['id']}"):
+            st.session_state.activities.remove(activity)
+            st.rerun()
 else:
     st.info("Ajoutez votre première activité en utilisant le formulaire ci-dessus.")
 
