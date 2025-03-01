@@ -2,9 +2,11 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+import plotly.express as px
 from datetime import datetime, timedelta
 import math
 import locale
+import uuid
 
 # Tentative de configuration de la locale française
 try:
@@ -21,12 +23,23 @@ mois_francais = {
     7: "Juillet", 8: "Août", 9: "Septembre", 10: "Octobre", 11: "Novembre", 12: "Décembre"
 }
 
+# Définition des couleurs
+colors = {
+    'Physique': '#FF5A5A',
+    'Émotionnel': '#FFCF56',
+    'Intellectuel': '#5271FF'
+}
+
 # Configuration de la page
 st.set_page_config(
     page_title="Calculateur de Biorythmes",
     page_icon="🔄",
     layout="wide"
 )
+
+# Initialisation des variables de session
+if 'activities' not in st.session_state:
+    st.session_state.activities = []
 
 # Titre de l'application
 st.title("🔄 Calculateur de Biorythmes")
@@ -100,47 +113,47 @@ with col1:
     st.progress(float(intellectual_today/2 + 0.5))
     st.markdown(f"<span style='color:#5271FF'>{format_value(intellectual_today)}</span>", unsafe_allow_html=True)
 
+# Création des données pour le graphique
+# Génération de données pour le mois en cours
+current_month = today.month
+current_year = today.year
+
+# Nom du mois en français
+mois_courant = mois_francais[current_month]
+
+# Déterminer le premier et dernier jour du mois
+if current_month == 12:
+    next_month = 1
+    next_month_year = current_year + 1
+else:
+    next_month = current_month + 1
+    next_month_year = current_year
+
+start_date = datetime(current_year, current_month, 1).date()
+end_date = datetime(next_month_year, next_month, 1).date() - timedelta(days=1)
+
+# Création d'une liste de dates pour le mois actuel
+date_range = [start_date + timedelta(days=i) for i in range((end_date - start_date).days + 1)]
+
+# Calcul des biorythmes pour chaque jour
+biorhythm_data = []
+
+for date in date_range:
+    physical, emotional, intellectual = calculate_biorhythm(birth_date, date)
+    biorhythm_data.append({
+        'Date': date,
+        'Physique': physical,
+        'Émotionnel': emotional,
+        'Intellectuel': intellectual,
+        'Jour': date.day
+    })
+
+# Création du DataFrame
+df = pd.DataFrame(biorhythm_data)
+
 with col2:
-    # Création des données pour le graphique
-    # Génération de données pour le mois en cours
-    current_month = today.month
-    current_year = today.year
-    
-    # Nom du mois en français
-    mois_courant = mois_francais[current_month]
-    
     # Affichage du mois en cours en français
     st.markdown(f"## {mois_courant} {current_year}")
-    
-    # Déterminer le premier et dernier jour du mois
-    if current_month == 12:
-        next_month = 1
-        next_month_year = current_year + 1
-    else:
-        next_month = current_month + 1
-        next_month_year = current_year
-    
-    start_date = datetime(current_year, current_month, 1).date()
-    end_date = datetime(next_month_year, next_month, 1).date() - timedelta(days=1)
-    
-    # Création d'une liste de dates pour le mois actuel
-    date_range = [start_date + timedelta(days=i) for i in range((end_date - start_date).days + 1)]
-    
-    # Calcul des biorythmes pour chaque jour
-    biorhythm_data = []
-    
-    for date in date_range:
-        physical, emotional, intellectual = calculate_biorhythm(birth_date, date)
-        biorhythm_data.append({
-            'Date': date,
-            'Physique': physical,
-            'Émotionnel': emotional,
-            'Intellectuel': intellectual,
-            'Jour': date.day
-        })
-    
-    # Création du DataFrame
-    df = pd.DataFrame(biorhythm_data)
     
     # Création du graphique avec Plotly
     fig = go.Figure()
@@ -195,8 +208,8 @@ with col2:
         x1=today.day,
         y1=1,
         line=dict(
-            color="gray",
-            width=1,
+            color="red",
+            width=2,
         )
     )
     
@@ -253,9 +266,158 @@ with col2:
     Les jours critiques sont les moments où un cycle passe de positif à négatif (ou inversement).
     """)
 
+# Section pour les activités planifiées
+st.markdown("---")
+st.subheader("📋 Planificateur d'activités")
+st.markdown("Planifiez vos activités en fonction de vos biorythmes pour optimiser votre performance")
+
+# Fonction pour déterminer si un jour est favorable pour une activité
+def is_favorable_day(category, day_value, threshold=0.3):
+    return day_value >= threshold
+
+# Fonction pour identifier les périodes favorables
+def get_favorable_periods(df, category, threshold=0.3):
+    periods = []
+    start = None
+    
+    for i, row in df.iterrows():
+        if row[category] >= threshold:
+            if start is None:
+                start = row['Jour']
+        elif start is not None:
+            periods.append((start, row['Jour'] - 1))
+            start = None
+    
+    # Si une période est en cours à la fin du mois
+    if start is not None:
+        periods.append((start, df['Jour'].iloc[-1]))
+    
+    return periods
+
+# Formulaire pour ajouter une nouvelle activité
+with st.expander("➕ Ajouter une nouvelle activité", expanded=False):
+    with st.form("new_activity_form"):
+        activity_name = st.text_input("Nom de l'activité")
+        activity_category = st.selectbox(
+            "Catégorie",
+            options=["Physique", "Émotionnel", "Intellectuel"]
+        )
+        threshold = st.slider(
+            "Seuil de recommandation", 
+            min_value=0.0, 
+            max_value=1.0, 
+            value=0.3, 
+            step=0.1,
+            help="Seuil au-dessus duquel l'activité est recommandée"
+        )
+        
+        submit_button = st.form_submit_button("Ajouter")
+        
+        if submit_button and activity_name:
+            new_activity = {
+                'id': str(uuid.uuid4()),
+                'name': activity_name,
+                'category': activity_category,
+                'threshold': threshold
+            }
+            st.session_state.activities.append(new_activity)
+            st.success(f"Activité '{activity_name}' ajoutée avec succès!")
+            st.experimental_rerun()
+
+# Affichage des activités et du diagramme de Gantt
+if st.session_state.activities:
+    # Création des données pour le diagramme de Gantt
+    gantt_data = []
+    
+    # Pour chaque activité, trouver les périodes favorables
+    for activity in st.session_state.activities:
+        periods = get_favorable_periods(df, activity['category'], activity['threshold'])
+        
+        for i, (start, end) in enumerate(periods):
+            gantt_data.append({
+                'Task': activity['name'],
+                'Start': start,
+                'Finish': end,
+                'Category': activity['category'],
+                'ID': activity['id'],
+                'Period': i+1
+            })
+    
+    if gantt_data:
+        # Création du DataFrame pour le diagramme de Gantt
+        gantt_df = pd.DataFrame(gantt_data)
+        
+        # Création du diagramme de Gantt
+        fig_gantt = px.timeline(
+            gantt_df, 
+            x_start="Start", 
+            x_end="Finish", 
+            y="Task",
+            color="Category",
+            color_discrete_map=colors,
+            title="Périodes recommandées pour vos activités",
+            labels={"Task": "Activité", "Category": "Catégorie"}
+        )
+        
+        # Ajuster la mise en page
+        fig_gantt.update_layout(
+            xaxis=dict(
+                title="Jour du mois",
+                tickmode='linear',
+                tick0=1,
+                dtick=1,
+                range=[0.5, len(df['Jour']) + 0.5]
+            ),
+            yaxis=dict(
+                title=None
+            ),
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="center",
+                x=0.5
+            ),
+            height=100 + (len(st.session_state.activities) * 50)
+        )
+        
+        # Ajouter une ligne verticale pour le jour actuel
+        fig_gantt.add_shape(
+            type="line",
+            x0=today.day,
+            y0=-0.5,
+            x1=today.day,
+            y1=len(st.session_state.activities) - 0.5,
+            line=dict(
+                color="red",
+                width=2,
+            )
+        )
+        
+        # Afficher le diagramme
+        st.plotly_chart(fig_gantt, use_container_width=True)
+    
+    # Gestion des activités existantes
+    st.subheader("Vos activités")
+    
+    col1, col2 = st.columns([3, 1])
+    
+    with col1:
+        for i, activity in enumerate(st.session_state.activities):
+            col_a, col_b, col_c = st.columns([3, 2, 1])
+            with col_a:
+                st.markdown(f"**{activity['name']}**")
+            with col_b:
+                st.markdown(f"Catégorie: {activity['category']}")
+            with col_c:
+                if st.button("Supprimer", key=f"delete_{activity['id']}"):
+                    st.session_state.activities.pop(i)
+                    st.experimental_rerun()
+else:
+    st.info("Ajoutez votre première activité en cliquant sur le bouton '+' ci-dessus.")
+
 # Pied de page
 st.markdown("---")
 st.markdown("""
-**Note** : Cette application est fournie à titre informatif uniquement. Les biorythmes sont considérés 
-comme une théorie pseudoscientifique et ne doivent pas remplacer un avis médical ou psychologique professionnel.
+Copyright Philippe Acquier
 """)
