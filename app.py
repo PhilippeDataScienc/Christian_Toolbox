@@ -342,61 +342,81 @@ if st.session_state.activities:
         # Identifier les jours critiques
         critical_days = identify_critical_days(cycle_data)
         
-        # Créer une visualisation HTML personnalisée avec CSS pour avoir plus de contrôle
-        html_content = f"""
-        <div style="position: relative; height: 50px; width: 100%; margin: 10px 0 30px 0;">
+        # Obtenir les couleurs en fonction de la catégorie
+        if activity['category'] == "Physique":
+            base_color = "rgb(255, 90, 90)"  # Rouge 
+        elif activity['category'] == "Émotionnel":
+            base_color = "rgb(255, 207, 86)"  # Jaune
+        else:  # Intellectuel
+            base_color = "rgb(82, 113, 255)"  # Bleu
+        
+        # Créer une visualisation améliorée
+        calendar_html = f"""
+        <div style="margin: 20px 0;">
+            <!-- Barre des jours -->
+            <div style="display: flex; height: 40px; width: 100%; position: relative; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px; overflow: hidden;">
+        """
+        
+        # Ligne verticale pour le jour actuel
+        calendar_html += f"""
+            <div style="position: absolute; left: calc({(today.day-1)/31*100}%); height: 100%; width: 2px; background-color: red; z-index: 10;"></div>
         """
         
         # Ajouter une barre pour chaque jour
         for i, (day, value) in enumerate(zip(days, cycle_data)):
-            # Déterminer la couleur en fonction de la valeur
+            # Déterminer le style en fonction de la valeur
             if day in critical_days:
                 # Jour critique - hachuré
                 style = "background-image: repeating-linear-gradient(45deg, #aaa, #aaa 5px, #f8f9fa 5px, #f8f9fa 10px);"
             elif value <= 0:
                 # Valeur négative - blanc/gris clair
-                style = "background-color: #f8f9fa; border: 1px solid #ddd;"
+                style = "background-color: #f8f9fa; border-right: 1px solid #ddd;"
             else:
                 # Valeur positive - dégradé de la couleur de la catégorie
-                # Calculer l'intensité de la couleur basée sur la valeur (0-1)
-                intensity = min(1, value)
+                # L'opacité varie de 0.3 à 1.0 en fonction de la valeur
+                intensity = 0.3 + (0.7 * min(1, value))
                 if activity['category'] == "Physique":
-                    base_color = "255, 90, 90"  # Rouge
+                    color_style = f"background-color: rgba(255, 90, 90, {intensity});"
                 elif activity['category'] == "Émotionnel":
-                    base_color = "255, 207, 86"  # Jaune
+                    color_style = f"background-color: rgba(255, 207, 86, {intensity});"
                 else:  # Intellectuel
-                    base_color = "82, 113, 255"  # Bleu
-                
-                # Créer un dégradé d'opacité
-                opacity = 0.3 + (0.7 * intensity)
-                style = f"background-color: rgba({base_color}, {opacity});"
+                    color_style = f"background-color: rgba(82, 113, 255, {intensity});"
+                style = color_style + " border-right: 1px solid rgba(0,0,0,0.05);"
             
             # Ajouter la barre du jour
-            html_content += f"""
-            <div style="position: absolute; left: {(day-1)/31*100}%; width: {1/31*100}%; height: 100%; {style}"></div>
+            calendar_html += f"""
+            <div style="flex: 1; {style}"></div>
             """
         
-        # Ajouter une ligne verticale pour le jour actuel
-        today_position = (today.day-1)/31*100
-        html_content += f"""
-        <div style="position: absolute; left: {today_position}%; width: 2px; height: 100%; background-color: red; z-index: 10;"></div>
+        calendar_html += """
+            </div>
+            
+            <!-- Numéros des jours -->
+            <div style="display: flex; width: 100%; margin-top: 5px;">
         """
         
-        # Ajouter les numéros des jours en bas
-        html_content += """
-        <div style="position: absolute; top: 100%; width: 100%; display: flex; justify-content: space-between; margin-top: 5px;">
-        """
+        # Ajouter les numéros des jours
         for i in range(1, 32):
-            html_content += f"""
-            <div style="width: 20px; text-align: center; font-size: 12px;">{i}</div>
-            """
-        html_content += """
-        </div>
+            # Ajouter un style spécial au jour actuel
+            day_style = "font-weight: bold; color: red;" if i == today.day else ""
+            
+            # Afficher les jours 1, 5, 10, 15, 20, 25, 30 pour éviter l'encombrement
+            if i == 1 or i % 5 == 0 or i == 31:
+                calendar_html += f"""
+                <div style="flex: 1; text-align: center; font-size: 12px; {day_style}">{i}</div>
+                """
+            else:
+                calendar_html += f"""
+                <div style="flex: 1;"></div>
+                """
+        
+        calendar_html += """
+            </div>
         </div>
         """
         
         # Afficher la visualisation HTML
-        st.markdown(html_content, unsafe_allow_html=True)
+        st.markdown(calendar_html, unsafe_allow_html=True)
         
         # Bouton de suppression
         col1, col2 = st.columns([5, 1])
