@@ -321,9 +321,8 @@ if st.session_state.activities:
                 z=[display_data],
                 x=df['Jour'],
                 colorscale=[
-                    [0, 'rgba(255,255,255,0)'],  # Transparent pour les valeurs <= 0.25
-                    [0.001, f'rgba{tuple(int(c) for c in bytes.fromhex(colors[activity["category"]][1:] + "80"))}'],  # Commencer le dégradé à 50% d'opacité
-                    [1, colors[activity['category']]]  # Couleur complète pour les valeurs maximales
+                    [0, f'rgba{tuple(int(c) for c in bytes.fromhex(colors[activity["category"]][1:] + "40"))}'],  # 25% d'opacité pour valeur = 0.25
+                    [1, colors[activity['category']]]  # 100% d'opacité pour valeur = 1
                 ],
                 showscale=False,
                 zmin=0.25,  # Commencer à partir de 0.25
