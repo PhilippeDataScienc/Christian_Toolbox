@@ -247,7 +247,9 @@ with col2:
         y=alt.Y('Valeur:Q', 
                scale=alt.Scale(domain=[-1, 1]),
                axis=alt.Axis(title='Niveau du biorythme')),
-        color=alt.Color('Cycle:N', scale=color_scale),
+        color=alt.Color('Cycle:N', 
+                       scale=color_scale,
+                       legend=None),  # Supprime complètement la légende
         tooltip=['Date:T', 'Cycle:N', alt.Tooltip('Valeur:Q', format='.2f')]
     ).properties(
         title=f'Biorythmes',
