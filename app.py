@@ -239,7 +239,17 @@ with col2:
     ).encode(x='x:Q')
     
     # Création du graphique avec Altair
-    chart = alt.Chart(df_melted).mark_line(
+    base = alt.Chart(df_melted)
+    
+    # Configuration pour supprimer les axes du haut et de droite
+    config = {
+        'axisX': {'domain': True, 'domainWidth': 1, 'domainColor': 'black', 'grid': True, 'gridWidth': 1, 'gridColor': '#DEDDDD'},
+        'axisY': {'domain': True, 'domainWidth': 1, 'domainColor': 'black', 'grid': True, 'gridWidth': 1, 'gridColor': '#DEDDDD'},
+        'view': {'stroke': None}  # Supprime le cadre autour du graphique
+    }
+    
+    # Création du graphique avec Altair
+    chart = base.mark_line(
         point=True,
         strokeWidth=3
     ).encode(
@@ -249,13 +259,17 @@ with col2:
                axis=alt.Axis(title='Niveau du biorythme')),
         color=alt.Color('Cycle:N', 
                        scale=color_scale,
-                       legend=None),  # Supprime complètement la légende
+                       legend=alt.Legend(
+                           orient='top-right',  # Place la légende en haut à droite
+                           title=None,          # Pas de titre pour la légende
+                           labelFontSize=12
+                       )),
         tooltip=['Date:T', 'Cycle:N', alt.Tooltip('Valeur:Q', format='.2f')]
     ).properties(
         title=f'Biorythmes',
         width=800,
         height=400
-    )
+    ).configure(**config)
     
     # Combiner les charts
     final_chart = chart + zero_line + today_line
