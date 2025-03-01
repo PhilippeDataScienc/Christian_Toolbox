@@ -429,6 +429,7 @@ if st.session_state.activities:
 else:
     st.info("Ajoutez votre première activité en utilisant le formulaire ci-dessus.")
 
+
 # Pied de page
 st.markdown("---")
 st.markdown("""
