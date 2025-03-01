@@ -304,6 +304,17 @@ if st.session_state.activities:
     recommendation_container = st.container()
     
     with recommendation_container:
+        # Fonction pour convertir une couleur HEX en RGBA avec opacité variable
+        def hex_to_rgba(hex_color, opacity):
+            # Enlever le # si présent
+            hex_color = hex_color.lstrip('#')
+            # Convertir en RGB
+            r = int(hex_color[0:2], 16)
+            g = int(hex_color[2:4], 16)
+            b = int(hex_color[4:6], 16)
+            # Retourner la chaîne RGBA
+            return f'rgba({r}, {g}, {b}, {opacity})'
+            
         # Pour chaque activité, créer un graphique de périodes recommandées
         for activity in st.session_state.activities:
             # Créer une figure pour cette activité
@@ -312,20 +323,26 @@ if st.session_state.activities:
             # Obtenir les données de biorythme pour cette catégorie
             cycle_data = df[activity['category']].values
             
+            # Créer une échelle de couleurs personnalisée qui varie en opacité
+            # Utiliser 5 points pour avoir une transition plus fluide
+            custom_colorscale = [
+                [0.25/1, hex_to_rgba(colors[activity['category']], 0.2)],  # à 0.25, opacité de 20%
+                [0.4/1, hex_to_rgba(colors[activity['category']], 0.4)],   # à 0.4, opacité de 40%
+                [0.6/1, hex_to_rgba(colors[activity['category']], 0.6)],   # à 0.6, opacité de 60%
+                [0.8/1, hex_to_rgba(colors[activity['category']], 0.8)],   # à 0.8, opacité de 80%
+                [1.0/1, hex_to_rgba(colors[activity['category']], 1.0)]    # à 1.0, opacité de 100%
+            ]
+            
             # Modifier les données pour afficher un dégradé uniquement pour les valeurs > 0.25
             display_data = [val if val > 0.25 else None for val in cycle_data]
             
             # Créer une visualisation de type heatmap horizontale
-            # Utiliser une seule ligne de couleur qui varie selon la valeur du biorythme
             fig_activity.add_trace(go.Heatmap(
                 z=[display_data],
                 x=df['Jour'],
-                colorscale=[
-                    [0, f'rgba{tuple(int(c) for c in bytes.fromhex(colors[activity["category"]][1:] + "40"))}'],  # 25% d'opacité pour valeur = 0.25
-                    [1, colors[activity['category']]]  # 100% d'opacité pour valeur = 1
-                ],
+                colorscale=custom_colorscale,
                 showscale=False,
-                zmin=0.25,  # Commencer à partir de 0.25
+                zmin=0.25,
                 zmax=1
             ))
             
