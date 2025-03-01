@@ -4,6 +4,22 @@ import numpy as np
 import altair as alt
 from datetime import datetime, timedelta
 import math
+import locale
+
+# Tentative de configuration de la locale française
+try:
+    locale.setlocale(locale.LC_TIME, 'fr_FR.UTF-8')
+except:
+    try:
+        locale.setlocale(locale.LC_TIME, 'fr_FR')
+    except:
+        pass  # Si la locale n'est pas disponible, on continue avec la locale par défaut
+
+# Dictionnaire pour traduire les noms des mois en français
+mois_francais = {
+    1: "Janvier", 2: "Février", 3: "Mars", 4: "Avril", 5: "Mai", 6: "Juin",
+    7: "Juillet", 8: "Août", 9: "Septembre", 10: "Octobre", 11: "Novembre", 12: "Décembre"
+}
 
 # Configuration de la page
 st.set_page_config(
@@ -44,11 +60,12 @@ def calculate_biorhythm(birthdate, target_date):
 col1, col2 = st.columns([1, 3])
 
 with col1:
-    # Saisie de la date de naissance
+    # Saisie de la date de naissance avec format français
     st.subheader("Entrez votre date de naissance")
     birth_date = st.date_input("Date de naissance", 
-                               value=datetime.now() - timedelta(days=365*30),  # ~30 ans par défaut
-                               max_value=datetime.now())
+                             value=datetime.now() - timedelta(days=365*30),  # ~30 ans par défaut
+                             max_value=datetime.now(),
+                             format="DD/MM/YYYY")  # Format français
     
     # Date actuelle
     today = datetime.now().date()
@@ -59,34 +76,41 @@ with col1:
     # Affichage des valeurs actuelles
     st.subheader("Vos biorythmes aujourd'hui")
     
-    # Fonction pour formater le pourcentage et déterminer l'état
-    def format_percentage(value):
-        percentage = round(value * 100, 1)
-        if percentage > 0:
-            return f"+{percentage}% (Phase positive)"
-        elif percentage < 0:
-            return f"{percentage}% (Phase négative)"
+    # Fonction pour formater la valeur et déterminer l'état
+    def format_value(value):
+        # Arrondir à 2 décimales
+        rounded_value = round(value, 2)
+        if rounded_value > 0:
+            return f"+{rounded_value} (Phase positive)"
+        elif rounded_value < 0:
+            return f"{rounded_value} (Phase négative)"
         else:
-            return f"{percentage}% (Jour critique)"
+            return f"{rounded_value} (Jour critique)"
     
     # Barres de progression colorées pour chaque cycle
     st.markdown("**Physique**")
     st.progress(float(physical_today/2 + 0.5))  # Normaliser entre 0 et 1
-    st.markdown(f"<span style='color:#FF5A5A'>{format_percentage(physical_today)}</span>", unsafe_allow_html=True)
+    st.markdown(f"<span style='color:#FF5A5A'>{format_value(physical_today)}</span>", unsafe_allow_html=True)
     
     st.markdown("**Émotionnel**")
     st.progress(float(emotional_today/2 + 0.5))
-    st.markdown(f"<span style='color:#FFCF56'>{format_percentage(emotional_today)}</span>", unsafe_allow_html=True)
+    st.markdown(f"<span style='color:#FFCF56'>{format_value(emotional_today)}</span>", unsafe_allow_html=True)
     
     st.markdown("**Intellectuel**")
     st.progress(float(intellectual_today/2 + 0.5))
-    st.markdown(f"<span style='color:#5271FF'>{format_percentage(intellectual_today)}</span>", unsafe_allow_html=True)
+    st.markdown(f"<span style='color:#5271FF'>{format_value(intellectual_today)}</span>", unsafe_allow_html=True)
 
 with col2:
     # Création des données pour le graphique
     # Génération de données pour le mois en cours
     current_month = today.month
     current_year = today.year
+    
+    # Nom du mois en français
+    mois_courant = mois_francais[current_month]
+    
+    # Affichage du mois en cours en français
+    st.markdown(f"## {mois_courant} {current_year}")
     
     # Déterminer le premier et dernier jour du mois
     if current_month == 12:
@@ -155,11 +179,11 @@ with col2:
         x=alt.X('Jour:O', axis=alt.Axis(title='Jour du mois')),
         y=alt.Y('Valeur:Q', 
                scale=alt.Scale(domain=[-1, 1]),
-               axis=alt.Axis(title='Niveau du biorythme', format='%')),
+               axis=alt.Axis(title='Niveau du biorythme')),
         color=alt.Color('Cycle:N', scale=color_scale),
-        tooltip=['Date:T', 'Cycle:N', alt.Tooltip('Valeur:Q', format='.1%')]
+        tooltip=['Date:T', 'Cycle:N', alt.Tooltip('Valeur:Q', format='.2f')]
     ).properties(
-        title=f'Biorythmes pour {today.strftime("%B %Y")}',
+        title=f'Biorythmes',
         width=800,
         height=400
     )
